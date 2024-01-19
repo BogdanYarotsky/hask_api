@@ -8,24 +8,26 @@ import           Network.HTTP.Simple
 
 newtype ReqBody = ReqBody String
 instance ToJSON ReqBody where
-    toJSON (ReqBody name) = object
+    toJSON (ReqBody query) = object
         [ 
-            "name" .= name
+            "query" .= query
         ]
 
 reqBody :: ReqBody
-reqBody = ReqBody "SELECT [System.Title] FROM WorkItems"
+reqBody = ReqBody "SELECT [System.Title], [System.State] FROM WorkItems"
 
+-- GET request here to get all sprints
+-- https://dev.azure.com/byarotsky/test/_apis/work/teamsettings/iterations?api-version=6.0
 main :: IO ()
 main = do
-    let pat = "pat"
-
+    let pat = ":pat_here"
     let request
          = setRequestHost "dev.azure.com"
          $ setRequestPath "/byarotsky/test/_apis/wit/wiql" 
          $ setRequestMethod "POST"
          $ setRequestHeader "Authorization" ["Basic " <> Base64.encode pat]
-         $ setRequestQueryString [("api-version", Just "7.1")]
+         $ setRequestHeader "Content-Type" ["application/json"]
+         $ setRequestQueryString [("api-version", Just "6.0")]
          $ setRequestBodyJSON reqBody
          $ setRequestSecure True
          $ setRequestPort 443
