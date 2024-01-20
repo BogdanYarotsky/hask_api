@@ -10,6 +10,32 @@ import           GHC.Generics
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Char8 as C8
 
+-- Define the data structure for iteration attributes
+data IterationAttributes = IterationAttributes {
+    startDate  :: Maybe String,
+    finishDate :: Maybe String,
+    timeFrame  :: String
+} deriving (Show, Generic)
+instance FromJSON IterationAttributes
+
+-- Define the data structure for each iteration
+data Iteration = Iteration {
+    id         :: String,
+    name       :: String,
+    path       :: String,
+    attributes :: IterationAttributes,
+    url        :: String
+} deriving (Show, Generic)
+instance FromJSON Iteration
+
+-- Define the data structure for the JSON response
+data IterationsResponse = IterationsResponse {
+    count :: Int,
+    value :: [Iteration]
+} deriving (Show, Generic)
+instance FromJSON IterationsResponse
+
+
 newtype WorkItemsRequestBody = WorkItemsRequestBody {
     query :: String
 } deriving (Generic, Show)
@@ -45,8 +71,20 @@ main' config = do
          $ ":" ++ pat config
 
     let authHeader = "Basic " <> encodedPat
-    C8.putStrLn authHeader
 
+    let iterRequest
+         = setRequestHost "dev.azure.com"
+         $ setRequestPath "/byarotsky/test/_apis/work/teamsettings/iterations"
+         $ setRequestMethod "GET"
+         $ setRequestHeader "Authorization" [authHeader]
+         $ setRequestQueryString [("api-version", Just "6.0")]
+         $ setRequestSecure True
+         $ setRequestPort 443
+         defaultRequest
+
+    response <- httpJSON iterRequest
+    let body = getResponseBody response :: IterationsResponse
+    C8.putStrLn $ C8.pack $ show $ count body
 
     -- let request
     --      = setRequestHost "dev.azure.com"
