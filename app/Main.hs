@@ -69,21 +69,24 @@ main' config = do
          = Base64.encode 
          $ C8.pack 
          $ ":" ++ pat config
-
+         
     let authHeader = "Basic " <> encodedPat
-
-    let iterRequest
+    let baseReqPath = C8.pack $ concat [organization config, "/", project config, "/_apis"]
+    let defaultDevOpsRequest
          = setRequestHost "dev.azure.com"
-         $ setRequestPath "/byarotsky/test/_apis/work/teamsettings/iterations"
-         $ setRequestMethod "GET"
          $ setRequestHeader "Authorization" [authHeader]
          $ setRequestQueryString [("api-version", Just "6.0")]
          $ setRequestSecure True
          $ setRequestPort 443
          defaultRequest
 
-    response <- httpJSON iterRequest
-    let body = getResponseBody response :: IterationsResponse
+    let iterationsRequest
+         = setRequestPath (baseReqPath <> "/work/teamsettings/iterations")
+         $ setRequestMethod "GET"
+         defaultDevOpsRequest
+
+    iterationsResponse <- httpJSON iterationsRequest
+    let body = getResponseBody iterationsResponse :: IterationsResponse
     C8.putStrLn $ C8.pack $ show $ count body
 
     -- let request
