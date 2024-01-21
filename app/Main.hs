@@ -9,6 +9,7 @@ import           GHC.Generics
 
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Char8 as C8
+import Data.List
 
 -- Define the data structure for iteration attributes
 data IterationAttributes = IterationAttributes {
@@ -20,7 +21,7 @@ instance FromJSON IterationAttributes
 
 -- Define the data structure for each iteration
 data Iteration = Iteration {
-    id         :: String,
+    iterationId :: String,
     name       :: String,
     path       :: String,
     attributes :: IterationAttributes,
@@ -61,33 +62,36 @@ main = do
     config <- BL.readFile "config.json"
     case (decode config :: Maybe Config) of
         Just cfg -> main' cfg
-        Nothing -> putStrLn "could not read config file!"
+        Nothing -> putStrLn "could not read config file"
 
 main' :: Config -> IO ()
 main' config = do
-    let encodedPat 
-         = Base64.encode 
-         $ C8.pack 
-         $ ":" ++ pat config
-         
-    let authHeader = "Basic " <> encodedPat
-    let baseReqPath = C8.pack $ concat [organization config, "/", project config, "/_apis"]
-    let defaultDevOpsRequest
-         = setRequestHost "dev.azure.com"
-         $ setRequestHeader "Authorization" [authHeader]
-         $ setRequestQueryString [("api-version", Just "6.0")]
-         $ setRequestSecure True
-         $ setRequestPort 443
-         defaultRequest
+    let devOpsRequest = defaultDevOpsRequest $ pat config
+    let baseReqestPath = C8.pack $ concat [organization config, "/", project config, "/_apis"]
 
     let iterationsRequest
-         = setRequestPath (baseReqPath <> "/work/teamsettings/iterations")
+         = setRequestPath (baseReqestPath <> "/work/teamsettings/iterations")
          $ setRequestMethod "GET"
-         defaultDevOpsRequest
+         devOpsRequest
 
     iterationsResponse <- httpJSON iterationsRequest
     let body = getResponseBody iterationsResponse :: IterationsResponse
     C8.putStrLn $ C8.pack $ show $ count body
+
+findCurrentIterationId :: IterationsResponse -> Maybe String
+findCurrentIterationId (IterationsResponse _ iterations)
+    =  iterationId <$> findCurrentIteration iterations
+    where findCurrentIteration iters = Just $ head iters
+
+
+defaultDevOpsRequest :: String -> Request
+defaultDevOpsRequest password
+         = setRequestHost "dev.azure.com"
+         $ setRequestBasicAuth "" (C8.pack password)
+         $ setRequestQueryString [("api-version", Just "6.0")]
+         $ setRequestSecure True
+         $ setRequestPort 443
+         defaultRequest
 
     -- let request
     --      = setRequestHost "dev.azure.com"
